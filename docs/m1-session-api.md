@@ -19,7 +19,7 @@ Authentication is evaluated before route selection, header validation, or body r
 
 ## Revision preconditions and request limits
 
-`GET` and successful mutations emit a strong ETag in the exact form `"{revision}"`. `start`, `chunks`, `finalize`, and `DELETE` require an exact matching `If-Match` value: missing, weak, list, wildcard, or malformed values are `428 invalid-precondition`, and a stale/losing CAS is `409 version-conflict`.
+`GET` and successful mutations emit a strong ETag in the exact form `"{revision}"`. `start`, `chunks`, `finalize`, and `DELETE` require an exact matching `If-Match` value: a missing header is `428 precondition-required`; malformed, weak, wildcard, multiple, or unsafe values are `400 invalid-precondition`; and a stale or CAS-racing write is `409 version-conflict`.
 
 JSON bodies must use `application/json`, are decoded as fatal UTF-8, and are read from the Web Standard stream with a 64 KiB (`65,536` byte) maximum, including when `Content-Length` is absent. Unsupported content types return `415 unsupported-media-type`; larger bodies return `413 body-too-large`; malformed, absent, or invalid UTF-8 JSON returns `400 invalid-payload`. Query strings and percent-encoded route forms are rejected. Protocol and service errors use stable non-sensitive codes only, and unexpected failures return sanitized `500 internal-error`. Public success/error responses never include owner IDs, bearer tokens, SHA-256 digests, raw chunk content, or unvalidated input.
 

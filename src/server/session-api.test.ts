@@ -28,9 +28,8 @@ describe('session API', () => {
   })
   it('authenticates before route and body handling, and hides cross-owner sessions using one service', async () => {
     let reads = 0; let creates = 0; const stream = new ReadableStream<Uint8Array>({ pull(controller) { reads += 1; controller.enqueue(new Uint8Array([123])); controller.close() } }, { highWaterMark: 0 })
-    const backing = new InMemorySessionRepository()
-    const repository: SessionRepository = { get: (id) => backing.get(id), async create(stored) { creates += 1; return backing.create(stored) }, compareAndSet: (id, revision, next) => backing.compareAndSet(id, revision, next) }
-    const api = setup(repository); const unauthenticated = new Request('https://example.test/api/v1/sessions', { method: 'POST', body: stream, duplex: 'half' } as RequestInit); const baseline = reads
+    const repository: SessionRepository = { async get() { throw new Error('unused') }, async create() { creates += 1; return true }, async compareAndSet() { throw new Error('unused') } }
+    const api = setup(repository); const unauthenticated = new Request('https://example.test/nope', { method: 'POST', body: stream, duplex: 'half' } as RequestInit); const baseline = reads
     const unauthorized = await api(unauthenticated); expect(unauthorized.status).toBe(401); expect(reads).toBe(baseline); expect(creates).toBe(0); expect(unauthorized.headers.get('www-authenticate')).toBe('Bearer'); expect(JSON.stringify(await unauthorized.json())).not.toContain('Bearer owner'); assertPublic(unauthorized)
     await create(api)
     const other = await api(request('/api/v1/sessions/session-synthetic', { headers: { authorization: 'Bearer other' } }))

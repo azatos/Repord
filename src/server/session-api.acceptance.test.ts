@@ -1,27 +1,31 @@
 import { describe, expect, it } from 'vitest'
-import { createSessionApi } from './session-api'
+import { createSessionApi, MAX_SESSION_REQUEST_BODY_BYTES } from './session-api'
 import { InMemorySessionRepository, SessionService } from '../lib/session-service'
 
-const request = (path: string, init: RequestInit = {}) => new Request(`https://example.test${path}`, { ...init, headers: { authorization: 'Bearer owner', 'content-type': 'application/json', ...init.headers } })
-const api = () => createSessionApi(new SessionService(new InMemorySessionRepository()), { async verify(r) { return r.headers.get('authorization') === 'Bearer owner' ? { ownerId: 'owner' } : undefined } })
-const create = (handler: ReturnType<typeof api>) => handler(request('/api/v1/sessions', { method: 'POST', body: JSON.stringify({ protocolVersion: 1, sessionId: 'acceptance' }) }))
+const headers = { authorization: 'Bearer owner', 'content-type': 'application/json' }
+const request = (path: string, init: RequestInit = {}) => new Request(`https://example.test${path}`, { ...init, headers: { ...headers, ...init.headers } })
+const api = () => createSessionApi(new SessionService(new InMemorySessionRepository()), { async verify(request) { return request.headers.get('authorization') === 'Bearer owner' ? { ownerId: 'owner-synthetic' } : request.headers.get('authorization') === 'Bearer other' ? { ownerId: 'other-synthetic' } : undefined } })
+const command = (sessionId = 'acceptance') => ({ protocolVersion: 1, sessionId })
+const chunk = (overrides: Record<string, unknown> = {}) => ({ protocolVersion: 1, sessionId: 'acceptance', chunkId: 'chunk', sequence: 0, captureStartMs: 7777, captureEndMs: 8888, mimeType: 'audio/sentinel', byteLength: 1, sha256: 'a'.repeat(64), continuityState: 'observed-continuous', confirmedGaps: [], ...overrides })
+const create = (handler: ReturnType<typeof api>, body: unknown = command()) => handler(request('/api/v1/sessions', { method: 'POST', body: JSON.stringify(body) }))
+function publicHeaders(response: Response) { expect(response.headers.get('content-type')).toBe('application/json; charset=utf-8'); expect(response.headers.get('cache-control')).toBe('no-store'); expect(response.headers.get('x-content-type-options')).toBe('nosniff'); expect(response.headers.get('referrer-policy')).toBe('no-referrer'); expect(response.headers.get('access-control-allow-origin')).not.toBe('*') }
 
-describe('session API acceptance', () => {
-  it('implements create/read/start/chunk/finalize/delete with strong revisions', async () => {
-    const handler = api()
-    expect((await create(handler)).headers.get('etag')).toBe('"0"')
-    expect((await handler(request('/api/v1/sessions/acceptance'))).status).toBe(200)
-    expect((await handler(request('/api/v1/sessions/acceptance/start', { method: 'POST', headers: { 'if-match': '"0"' } }))).headers.get('etag')).toBe('"1"')
-    const chunk = { protocolVersion: 1, sessionId: 'acceptance', chunkId: 'accepted', sequence: 0, captureStartMs: 0, captureEndMs: 1, mimeType: 'audio/mp4', byteLength: 1, sha256: 'a'.repeat(64), continuityState: 'observed-continuous', confirmedGaps: [] }
-    expect((await handler(request('/api/v1/sessions/acceptance/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify(chunk) }))).headers.get('etag')).toBe('"2"')
-    expect((await handler(request('/api/v1/sessions/acceptance/finalize', { method: 'POST', headers: { 'if-match': '"2"' }, body: JSON.stringify({ protocolVersion: 1, sessionId: 'acceptance', declaredFinalSequence: 0 }) }))).headers.get('etag')).toBe('"3"')
-    expect((await handler(request('/api/v1/sessions/acceptance', { method: 'DELETE', headers: { 'if-match': '"3"' } }))).headers.get('etag')).toBe('"4"')
+describe('session API acceptance matrix', () => {
+  it('has exact lifecycle bodies and ETags, including duplicate invariance', async () => {
+    const handler = api(); const created = await create(handler); expect(created.status).toBe(201); expect(created.headers.get('location')).toBe('/api/v1/sessions/acceptance'); expect(created.headers.get('etag')).toBe('"0"'); expect(await created.json()).toEqual({ data: { protocolVersion: 1, sessionId: 'acceptance', state: 'created', revision: 0, receivedChunkCount: 0, receivedSequences: [], confirmedGapCount: 0, continuitySummary: 'not-observed' } })
+    const read = await handler(request('/api/v1/sessions/acceptance')); expect(read.status).toBe(200); expect(read.headers.get('etag')).toBe('"0"')
+    const started = await handler(request('/api/v1/sessions/acceptance/start', { method: 'POST', headers: { 'if-match': '"0"' } })); expect(started.status).toBe(200); expect(await started.json()).toMatchObject({ data: { revision: 1, state: 'recording' } })
+    const accepted = await handler(request('/api/v1/sessions/acceptance/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify(chunk()) })); expect(accepted.status).toBe(200); expect(accepted.headers.get('etag')).toBe('"2"'); expect(JSON.stringify(await accepted.json())).not.toMatch(/audio\/sentinel|7777|8888|aaaa/)
+    const duplicate = await handler(request('/api/v1/sessions/acceptance/chunks', { method: 'POST', headers: { 'if-match': '"2"' }, body: JSON.stringify(chunk()) })); expect(duplicate.status).toBe(200); expect(duplicate.headers.get('etag')).toBe('"2"'); expect(await duplicate.json()).toMatchObject({ data: { disposition: 'duplicate', session: { revision: 2 } } })
+    const final = await handler(request('/api/v1/sessions/acceptance/finalize', { method: 'POST', headers: { 'if-match': '"2"' }, body: JSON.stringify({ ...command(), declaredFinalSequence: 0 }) })); expect(final.headers.get('etag')).toBe('"3"'); expect(await final.json()).toMatchObject({ data: { revision: 3, state: 'finalizing' } }); const deleted = await handler(request('/api/v1/sessions/acceptance', { method: 'DELETE', headers: { 'if-match': '"3"' } })); expect(deleted.headers.get('etag')).toBe('"4"'); expect(await deleted.json()).toMatchObject({ data: { revision: 4, state: 'deleted' } })
   })
-  it('keeps public failures non-sensitive and uses required status categories', async () => {
-    const handler = api()
-    const unsupported = await handler(request('/api/v1/sessions', { method: 'POST', headers: { 'content-type': 'text/plain' }, body: 'secret' }))
-    expect(unsupported.status).toBe(415); expect(await unsupported.json()).toEqual({ error: { code: 'unsupported-media-type' } })
-    const unauthorized = await handler(new Request('https://example.test/api/v1/sessions', { method: 'POST', body: 'secret' }))
-    expect(unauthorized.status).toBe(401); expect(JSON.stringify(await unauthorized.json())).not.toContain('secret')
+  it('hides ownership, validates preconditions, routes, and conflict bodies', async () => {
+    const handler = api(); await create(handler); const other = await handler(request('/api/v1/sessions/acceptance', { headers: { authorization: 'Bearer other' } })); const absent = await handler(request('/api/v1/sessions/missing', { headers: { authorization: 'Bearer other' } })); expect(other.status).toBe(404); expect(await other.json()).toEqual({ error: { code: 'not-found' } }); expect(await absent.json()).toEqual({ error: { code: 'not-found' } })
+    expect((await create(handler, { ...command(), ownerId: 'other-synthetic' })).status).toBe(400); expect((await handler(request('/api/v1/sessions?ownerId=x'))).status).toBe(404); const method = await handler(request('/api/v1/sessions/acceptance', { method: 'PUT' })); expect(method.status).toBe(405); expect(method.headers.get('allow')).toBe('GET, DELETE'); for (const path of ['/api/v1/sessions/%61', '/api/v1/sessions/acceptance/extra', `/api/v1/sessions/${'a'.repeat(129)}`]) expect((await handler(request(path))).status).toBe(404)
+    const missing = await handler(request('/api/v1/sessions/acceptance/start', { method: 'POST' })); expect(missing.status).toBe(428); expect(await missing.json()).toEqual({ error: { code: 'precondition-required' } }); for (const value of ['*', 'W/"0"', '"0", "1"', '"9007199254740992"']) { const invalid = await handler(request('/api/v1/sessions/acceptance/start', { method: 'POST', headers: { 'if-match': value } })); expect(invalid.status).toBe(400); expect(await invalid.json()).toEqual({ error: { code: 'invalid-precondition' } }) }
+  })
+  it('enforces body limits and maps conflicts without exposing inputs', async () => {
+    const handler = api(); const early = await handler(request('/api/v1/sessions', { method: 'POST', headers: { 'content-length': String(MAX_SESSION_REQUEST_BODY_BYTES + 1) }, body: '{}' })); expect(early.status).toBe(413); publicHeaders(early); const big = new ReadableStream<Uint8Array>({ pull(c) { c.enqueue(new Uint8Array(MAX_SESSION_REQUEST_BODY_BYTES + 1)) }, cancel() { return Promise.reject(new Error('secret-cancel')) } }); expect((await handler(request('/api/v1/sessions', { method: 'POST', body: big, duplex: 'half' } as RequestInit))).status).toBe(413)
+    await create(handler); await handler(request('/api/v1/sessions/acceptance/start', { method: 'POST', headers: { 'if-match': '"0"' } })); const missingChunks = await handler(request('/api/v1/sessions/acceptance/finalize', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify({ ...command(), declaredFinalSequence: 1 }) })); expect(missingChunks.status).toBe(409); expect(await missingChunks.json()).toEqual({ error: { code: 'missing-chunks', missingSequences: [0, 1] } }); const stale = await handler(request('/api/v1/sessions/acceptance/chunks', { method: 'POST', headers: { 'if-match': '"0"' }, body: JSON.stringify(chunk()) })); expect(stale.status).toBe(409); expect(await stale.json()).toEqual({ error: { code: 'version-conflict' } })
   })
 })
