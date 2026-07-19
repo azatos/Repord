@@ -25,3 +25,4 @@ jobs:
       - run: npm test
       - run: npm run verify:pwa
       - run: npm run build
+      - run: npm audit --omit=dev
