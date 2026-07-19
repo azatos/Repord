@@ -13,4 +13,4 @@
 
 ## Non-goals
 
-This is not production storage or an M1 completion claim. Authentication, HTTP routes, raw-audio storage, expiry/deletion workers, and actual iPhone upload validation remain unimplemented. IOS-06 and IOS-07 remain `not-run`.
+This is not production storage or an M1 completion claim. The separate framework-neutral [M1 session HTTP boundary](m1-session-api.md) reuses this service and accepts a host-provided asynchronous authentication verifier, but it does not provide a real verifier or listener. Raw-audio storage, expiry/deletion workers, and actual iPhone upload validation remain unimplemented. IOS-06 and IOS-07 remain `not-run`.
