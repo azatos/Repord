@@ -20,6 +20,7 @@ Repord는 iPhone Safari에서 설치해 사용하는 강의 녹음 및 강의노
 - [아키텍처](docs/architecture.md): PWA·클라우드 처리 경계와 mock adapter
 - [로드맵](docs/roadmap.md): M0–M5 단계와 완료 기준
 - [iPhone Safari 테스트 계획](docs/iphone-safari-test-plan.md): 실제 기기 검증 절차와 결과
+- [M1 session HTTP API](docs/m1-session-api.md): framework-neutral metadata API 경계와 ETag 계약
 - [ADR](docs/adr): PWA 우선, 클라우드 AI, iOS 제약 의사결정 기록
 - [ADR 0004: 민감 오디오 수명주기](docs/adr/0004-sensitive-audio-lifecycle.md): 실제 오디오 업로드 전 접근 제어·삭제·보존 기준
 

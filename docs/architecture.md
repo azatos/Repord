@@ -36,7 +36,7 @@ structured lecture note + processing status
 
 ## M1 세션 프로토콜 기반
 
-M1의 기반으로 PWA와 향후 Cloud API가 공유하는 순수 TypeScript 세션·청크 메타데이터 프로토콜 v1과 테스트/개발 전용 인메모리 세션 서비스를 구현한다. 서비스는 trusted owner context, 상태 전이, 순번·재시도, 보수적 연속성 요약, revision 기반 CAS 및 삭제 tombstone을 사용한다. 공개 DTO와 오류에는 owner ID, digest, 원본 chunk 또는 입력 콘텐츠를 포함하지 않는다. 이는 실제 인증·비공개 저장소·업로드·삭제 worker가 아니며 M1 완료를 뜻하지 않는다. 상세 계약은 [M1 세션 프로토콜](m1-session-protocol.md)와 [M1 인메모리 세션 서비스](m1-session-service.md)에 있다.
+M1의 기반으로 PWA와 향후 Cloud API가 공유하는 순수 TypeScript 세션·청크 메타데이터 프로토콜 v1과 테스트/개발 전용 인메모리 세션 서비스를 구현한다. 서비스는 trusted owner context, 상태 전이, 순번·재시도, 보수적 연속성 요약, revision 기반 CAS 및 삭제 tombstone을 사용한다. 공개 DTO와 오류에는 owner ID, digest, 원본 chunk 또는 입력 콘텐츠를 포함하지 않는다. metadata-only HTTP 경계는 host-supplied 비동기 인증 verifier를 사용하며 실제 인증 SDK나 listener를 포함하지 않는다. 이는 실제 인증·비공개 저장소·업로드·삭제 worker가 아니며 M1 완료를 뜻하지 않는다. 상세 계약은 [M1 세션 프로토콜](m1-session-protocol.md), [M1 인메모리 세션 서비스](m1-session-service.md), [M1 session HTTP API](m1-session-api.md)에 있다.
 
 ## AI adapter 경계
 
