@@ -1,0 +1,38 @@
+name: Feature
+description: Propose one scoped product or engineering change.
+title: "feat: "
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: "Create one issue for one deliverable. Implement it in one PR. Do not include real audio, transcripts, personal data, or API keys."
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem and outcome
+      description: What user or system problem will this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: List included work and explicit non-goals.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable criteria, including tests.
+    validations:
+      required: true
+  - type: checkboxes
+    id: ios
+    attributes:
+      label: iPhone Safari impact
+      options:
+        - label: This change affects iPhone-only behavior and has a linked real-device validation plan.
+        - label: This change does not affect iPhone-only behavior.
+    validations:
+      required: true
