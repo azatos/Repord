@@ -8,9 +8,9 @@
 
 ## 상태와 순서
 
-상태는 `created → recording → finalizing → completed`이며, `created`·`recording`·`finalizing`에서는 `failed`로 갈 수 있다. `deleted`는 다른 모든 삭제되지 않은 상태에서 도달할 수 있는 terminal 상태다.
+상태는 `created → recording → finalizing → completed`이며, `created`·`recording`·`finalizing`에서는 `failed`로 갈 수 있다. `deleted`는 다른 모든 삭제되지 않은 상태에서 도달할 수 있는 유일한 terminal 상태다. `completed`와 `failed`는 삭제 tombstone으로 전이할 수 있다.
 
-청크는 sequence 순서로 저장한다. 순서가 바뀐 도착은 허용하지만, 같은 chunk ID의 동일한 재시도만 idempotent duplicate로 취급한다. 같은 ID의 다른 metadata와 같은 sequence의 다른 ID는 거부한다. finalize는 0부터 선언한 마지막 sequence까지 모두 있어야 한다.
+청크는 0부터 86,399까지의 sequence 순서로 저장한다. 순서가 바뀐 도착은 허용하지만, 같은 chunk ID의 같은 의미 metadata 재시도만 idempotent duplicate로 취급한다. gap은 시간순으로 canonicalize하며 겹침을 거부하고, SHA-256은 소문자로 정규화한다. 같은 ID의 다른 metadata와 같은 sequence의 다른 ID는 거부한다. finalize는 0부터 선언한 마지막 sequence까지 모두 있어야 하며, 선언 범위 뒤의 청크도 거부한다.
 
 ## 연속성과 수명주기
 
