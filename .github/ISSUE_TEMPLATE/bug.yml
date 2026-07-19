@@ -1,0 +1,34 @@
+name: Bug report
+description: Report one reproducible defect.
+title: "bug: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: "Do not attach real recordings, transcripts, API keys, or personal information. Use synthetic or redacted evidence only."
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction steps
+      description: Include build/commit and Linux or iPhone environment details as applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected and actual behavior
+    validations:
+      required: true
+  - type: checkboxes
+    id: iphone
+    attributes:
+      label: iPhone Safari verification
+      options:
+        - label: I tested on a real iPhone and included model, iOS, Safari version, and outcome above.
+        - label: This is not an iPhone-specific issue or real-device testing is not yet available.
