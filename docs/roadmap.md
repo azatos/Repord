@@ -4,18 +4,17 @@
 
 ## 현재 구현 및 검증 상태
 
-아래 마일스톤은 미래의 구현·완료 기준이며 현재 구현이나 통과 증거를 뜻하지 않는다.
-
-- M0용 마이크/PWA 테스트 하네스와 Linux 자동 검증 workflow가 추가되었지만, 자동 검증 결과는 실제 iPhone Safari 통과 증거가 아니다.
-- M1의 저장소·접근 제어·보존·로그 제외·삭제 제어와 검증 스위트는 아직 구현하거나 실행하지 않았다. 따라서 실제 오디오 업로드는 허용하지 않는다.
-- M2의 mock 전사 UI와 Linux 통합 테스트는 아직 구현하거나 실행하지 않았다.
-- 실제 iPhone Safari 시나리오 IOS-01부터 IOS-05 및 IOS-07은 모두 `not-run`이다. M1 범위인 IOS-06도 `not-run`이며 Linux 결과로 실제 기기 통과를 추정하지 않는다.
+- M0 마이크/PWA 테스트 하네스와 Linux 자동 검증 workflow를 구현했다. 2026-07-19에 실제 iPhone Safari에서 IOS-01부터 IOS-05까지 실행해 모두 `pass`로 판정했으며, 공식 판정은 [Issue #3](https://github.com/azatos/Repord/issues/3)에 기록했다.
+- M0 검증 환경은 앱 버전 `0.1.0`, 커밋 `25a3aa8ccb816b46b695abb78ae1d36b7b0a94b0`, iPhone 15 Pro, iOS 26.5.2, Safari 604.1, 셀룰러 네트워크, 설치형 PWA 및 등록된 service worker다.
+- IOS-04와 IOS-05의 `pass`는 앱 전환·화면 잠금 뒤 관찰할 수 없는 구간을 `continuity-unknown`으로 보수적으로 표시했다는 뜻이다. 백그라운드 또는 잠금 화면 녹음의 지속을 보장하지 않는다.
+- M1의 저장소·접근 제어·보존·로그 제외·삭제 제어와 검증 스위트는 아직 구현하거나 실행하지 않았다. 따라서 실제 오디오 업로드는 허용하지 않으며 M1 시나리오 IOS-06은 `not-run`이다.
+- M2의 mock 전사 UI와 Linux 통합 테스트는 아직 구현하거나 실행하지 않았으며 IOS-07도 `not-run`이다.
 
 ## M0 — iPhone Safari 마이크 및 PWA 가능성 검증
 
 - Safari에서 설치 흐름, 마이크 권한, 포그라운드 녹음의 가능성을 실제 기기에서 확인한다.
 - 백그라운드/화면 잠금 시 관찰 가능한 연속성 결과와 복귀 동작을 기록한다.
-- 완료 기준: [iPhone Safari 테스트 계획](iphone-safari-test-plan.md)의 M0 항목에 기기·iOS/Safari 버전·결과가 기록된다.
+- 완료 상태: 2026-07-19 실제 기기에서 IOS-01부터 IOS-05까지 `pass`. 상세 환경과 판정은 [iPhone Safari 테스트 계획](iphone-safari-test-plan.md)과 [Issue #3](https://github.com/azatos/Repord/issues/3)에 기록되어 있다.
 
 ## M1 — 녹음 세션과 청크 업로드
 
