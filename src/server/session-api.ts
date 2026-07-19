@@ -8,7 +8,7 @@ export interface AuthVerifier {
 export const MAX_SESSION_REQUEST_BODY_BYTES = 64 * 1024
 
 type PublicValue = PublicSessionDto | AddChunkServiceResult
-type ErrorCode = 'unauthorized' | 'not-found' | 'method-not-allowed' | 'invalid-payload' | 'unsupported-media-type' | 'body-too-large' | 'invalid-precondition' | 'version-conflict' | 'session-conflict' | 'invalid-transition' | 'invalid-state' | 'chunk-id-conflict' | 'sequence-conflict' | 'final-sequence-conflict' | 'missing-chunks' | 'internal-error'
+type ErrorCode = 'unauthorized' | 'not-found' | 'method-not-allowed' | 'invalid-payload' | 'unsupported-media-type' | 'body-too-large' | 'precondition-required' | 'invalid-precondition' | 'version-conflict' | 'session-conflict' | 'invalid-transition' | 'invalid-state' | 'chunk-id-conflict' | 'sequence-conflict' | 'final-sequence-conflict' | 'missing-chunks' | 'internal-error'
 
 function response(status: number, payload: object, extra: HeadersInit = {}): Response {
   const headers = new Headers(extra)
@@ -28,16 +28,18 @@ function success(status: number, value: PublicValue, extra: HeadersInit = {}): R
   headers.set('etag', etag(session.revision))
   return response(status, { data: value }, headers)
 }
-function ifMatch(request: Request): number | undefined {
+type Precondition = Readonly<{ kind: 'missing' }> | Readonly<{ kind: 'invalid' }> | Readonly<{ kind: 'valid'; revision: number }>
+function ifMatch(request: Request): Precondition {
   const value = request.headers.get('if-match')
-  const match = value === null ? undefined : /^"(0|[1-9][0-9]*)"$/.exec(value)
-  if (!match) return undefined
+  if (value === null) return { kind: 'missing' }
+  const match = /^"(0|[1-9][0-9]*)"$/.exec(value)
+  if (!match) return { kind: 'invalid' }
   const revision = Number(match[1])
-  return Number.isSafeInteger(revision) ? revision : undefined
+  return Number.isSafeInteger(revision) ? { kind: 'valid', revision } : { kind: 'invalid' }
 }
 function jsonContentType(request: Request): boolean {
   const value = request.headers.get('content-type')
-  return value !== null && value.split(';', 1)[0]!.trim().toLowerCase() === 'application/json'
+  return value !== null && /^application\/json(?:\s*;\s*charset\s*=\s*utf-8)?\s*$/i.test(value)
 }
 async function readJson(request: Request): Promise<{ ok: true; value: unknown } | { ok: false; code: 'body-too-large' | 'invalid-payload' }> {
   const length = request.headers.get('content-length')
@@ -99,8 +101,10 @@ export function createSessionApi(service: SessionService, auth: AuthVerifier): (
         return result.ok ? success(200, result.value) : serviceFailure(result)
       }
       if ((!action && request.method !== 'DELETE') || (action && request.method !== 'POST')) return failure(405, 'method-not-allowed', {}, { allow: action ? 'POST' : 'GET, DELETE' })
-      const revision = ifMatch(request)
-      if (revision === undefined) return failure(428, 'invalid-precondition')
+      const precondition = ifMatch(request)
+      if (precondition.kind === 'missing') return failure(428, 'precondition-required')
+      if (precondition.kind === 'invalid') return failure(400, 'invalid-precondition')
+      const revision = precondition.revision
       if (!action) {
         const result = await service.delete(owner, sessionId, revision)
         return result.ok ? success(200, result.value) : serviceFailure(result)

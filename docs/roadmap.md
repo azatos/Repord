@@ -7,7 +7,7 @@
 - M0 마이크/PWA 테스트 하네스와 Linux 자동 검증 workflow를 구현했다. 2026-07-19에 실제 iPhone Safari에서 IOS-01부터 IOS-05까지 실행해 모두 `pass`로 판정했으며, 공식 판정은 [Issue #3](https://github.com/azatos/Repord/issues/3)에 기록했다.
 - M0 검증 환경은 앱 버전 `0.1.0`, 커밋 `25a3aa8ccb816b46b695abb78ae1d36b7b0a94b0`, iPhone 15 Pro, iOS 26.5.2, Safari 604.1, 셀룰러 네트워크, 설치형 PWA 및 등록된 service worker다.
 - IOS-04와 IOS-05의 `pass`는 앱 전환·화면 잠금 뒤 관찰할 수 없는 구간을 `continuity-unknown`으로 보수적으로 표시했다는 뜻이다. 백그라운드 또는 잠금 화면 녹음의 지속을 보장하지 않는다.
-- M1 기반으로 세션·청크 메타데이터 프로토콜 v1, 테스트/개발 전용 owner-scoped 인메모리 세션 서비스, 그리고 host-supplied 비동기 인증 verifier를 받는 framework-neutral metadata HTTP 경계를 구현했다. HTTP 경계는 CAS revision ETag, 64 KiB JSON 제한과 비민감 응답을 검증하지만 실제 인증·저장소·업로드·삭제 worker를 구현하거나 M1을 완료한 것은 아니다. 실제 오디오 업로드는 계속 허용하지 않는다. M1 시나리오 IOS-06은 `not-run`이며 IOS-07도 `not-run`이다.
+- M1 기반으로 세션·청크 메타데이터 프로토콜 v1, 테스트/개발 전용 owner-scoped 인메모리 세션 서비스, 그리고 host-supplied 비동기 인증 verifier를 받는 framework-neutral [metadata HTTP 경계](m1-session-api.md)를 구현했다. HTTP 경계는 CAS revision ETag, 64 KiB JSON 제한과 비민감 응답을 검증하지만 실제 인증·저장소·업로드·삭제 worker를 구현하거나 M1을 완료한 것은 아니다. 실제 오디오 업로드는 계속 허용하지 않는다. M1 시나리오 IOS-06은 `not-run`이며 IOS-07도 `not-run`이다.
 - M2의 mock 전사 UI와 Linux 통합 테스트는 아직 구현하거나 실행하지 않았으며 IOS-07도 `not-run`이다.
 
 ## M0 — iPhone Safari 마이크 및 PWA 가능성 검증
