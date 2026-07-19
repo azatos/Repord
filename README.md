@@ -2,7 +2,7 @@
 
 Repord는 iPhone Safari에서 설치해 사용하는 강의 녹음 및 강의노트 생성 PWA를 위한 저장소다. 수업 중에는 화면을 켜 둔 포그라운드 녹음을 기본으로 하며, 서버에서 전사·화자 필터링·노트 생성을 처리한다.
 
-> 현재는 M0 가능성 검증 단계다. React 기반 마이크/PWA 테스트 하네스만 포함하며, FastAPI, 데이터베이스, 오디오 업로드, 음성인식, AI SDK 및 실제 AI API 연동은 아직 포함하지 않는다.
+> M0 iPhone Safari 가능성 검증을 완료했다. 현재 다음 단계는 M1 녹음 세션·청크 업로드와 개인정보·수명주기 게이트 구현이다. FastAPI, 데이터베이스, 실제 오디오 업로드, 음성인식, AI SDK 및 실제 AI API 연동은 아직 포함하지 않는다.
 
 ## 제품 원칙
 
@@ -19,7 +19,7 @@ Repord는 iPhone Safari에서 설치해 사용하는 강의 녹음 및 강의노
 - [제품 요구사항](docs/product-requirements.md): 사용자 흐름, 범위, 수용 기준
 - [아키텍처](docs/architecture.md): PWA·클라우드 처리 경계와 mock adapter
 - [로드맵](docs/roadmap.md): M0–M5 단계와 완료 기준
-- [iPhone Safari 테스트 계획](docs/iphone-safari-test-plan.md): 실제 기기 검증 절차
+- [iPhone Safari 테스트 계획](docs/iphone-safari-test-plan.md): 실제 기기 검증 절차와 결과
 - [ADR](docs/adr): PWA 우선, 클라우드 AI, iOS 제약 의사결정 기록
 - [ADR 0004: 민감 오디오 수명주기](docs/adr/0004-sensitive-audio-lifecycle.md): 실제 오디오 업로드 전 접근 제어·삭제·보존 기준
 
@@ -27,7 +27,7 @@ Repord는 iPhone Safari에서 설치해 사용하는 강의 녹음 및 강의노
 
 모든 작업은 하나의 GitHub Issue와 하나의 PR로 진행하며 `main`에 직접 커밋하지 않는다. 세부 규칙은 [AGENTS.md](AGENTS.md)를 따른다.
 
-## M0 harness 개발
+## M0 harness 개발 및 검증
 
 지원되는 Node.js 22 또는 24 LTS를 사용한다. 기본 개발 버전은 [.nvmrc](.nvmrc)의 Node.js 22이며 다음 명령으로 재현한다.
 
@@ -45,6 +45,6 @@ npm run build
 
 GitHub Pages를 사용하려면 저장소의 **Settings → Pages → Build and deployment → Source**를 `GitHub Actions`로 설정한다. `main` push 또는 `Deploy Pages` workflow의 수동 실행은 `VITE_BASE_PATH=/Repord/`로 빌드한 `dist`만 배포한다. 비공개 저장소에서 Pages를 사용할 수 없는 요금제라면 저장소를 공개로 바꾸지 말고 배포를 `blocked`로 기록한다.
 
-iPhone Safari에서 HTTPS 페이지를 열어 홈 화면에 추가한 뒤 IOS-01~IOS-05를 실행한다. 하네스 화면에 표시되는 commit SHA를 기록하고 개인정보 없는 JSON 리포트를 내려받는다. 각 결과는 실제 기기 전까지 `not-run`이며 Chromium/Codex Cloud 결과로 Safari 통과를 기록하지 않는다.
+2026-07-19에 설치형 iPhone Safari PWA에서 IOS-01부터 IOS-05까지 실행해 모두 `pass`로 판정했다. 자세한 기기 환경과 결과는 [iPhone Safari 테스트 계획](docs/iphone-safari-test-plan.md)에 기록한다. IOS-04와 IOS-05의 통과는 앱 전환·화면 잠금 뒤 관찰 불가능한 구간을 `continuity-unknown`으로 정확히 표시했다는 의미이며, 백그라운드 또는 잠금 화면 녹음을 보장하지 않는다. M1의 IOS-06과 M2의 IOS-07은 아직 `not-run`이다.
 
-이 하네스는 백그라운드 녹음을 보장하지 않는다. 생성된 오디오 Blob은 크기 집계 직후 폐기하며 업로드·저장·재생·다운로드하지 않는다. 실제 음성, 전사문, 사용자 식별정보가 포함된 리포트나 증적은 저장소에 커밋하지 않는다.
+이 하네스는 생성된 오디오 Blob을 크기 집계 직후 폐기하며 업로드·저장·재생·다운로드하지 않는다. 실제 음성, 전사문, 사용자 식별정보가 포함된 리포트나 증적은 저장소에 커밋하지 않는다.
