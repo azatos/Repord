@@ -53,7 +53,7 @@ async function readJson(request: Request): Promise<{ ok: true; value: unknown } 
       const item = await reader.read()
       if (item.done) break
       lengthRead += item.value.byteLength
-      if (lengthRead > MAX_SESSION_REQUEST_BODY_BYTES) { try { await reader.cancel() } catch { /* The limit still wins if cancellation fails. */ } return { ok: false, code: 'body-too-large' } }
+      if (lengthRead > MAX_SESSION_REQUEST_BODY_BYTES) { try { await reader.cancel() } catch { /* Preserve the size-limit response. */ } return { ok: false, code: 'body-too-large' } }
       chunks.push(item.value)
     }
     const bytes = new Uint8Array(lengthRead)
