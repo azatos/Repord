@@ -34,6 +34,10 @@ structured lecture note + processing status
 
 클라이언트는 세션 ID, 순번, 녹음 시작/종료 시각을 가진 청크를 만든다. 관찰 가능한 연속 청크는 `observed-continuous`로 기록한다. MediaStream 종료, 청크 타이머 지연 또는 연속 청크 시간 범위의 단절처럼 공백을 입증하는 신호가 있으면 `confirmed-gap`으로 기록하고, 원인·추정 시간 범위를 보관해 UI에 경고한다. Safari가 중단되어 관찰 신호를 얻을 수 없으면 `continuity-unknown`으로 기록하며, UI는 녹음 완전성을 검증할 수 없다고 경고한다. `continuity-unknown`은 연속 녹음을 의미하지 않으며, 모든 중단이나 공백을 감지한다고 주장하지 않는다.
 
+## M1 세션 프로토콜 기반
+
+M1의 첫 기반으로 PWA와 향후 Cloud API가 공유하는 순수 TypeScript 세션·청크 메타데이터 프로토콜 v1을 구현한다. 이 프로토콜은 trusted owner context, 상태 전이, 순번·재시도, 연속성 메타데이터와 최대 24시간 deadline 계산만 정의한다. 실제 인증, 업로드, 저장소, 삭제 작업은 아직 구현하지 않았으며 M1 완료를 뜻하지 않는다. 상세 계약은 [M1 세션 프로토콜](m1-session-protocol.md)에 있다.
+
 ## AI adapter 경계
 
 처리 파이프라인은 전사·화자 필터·노트 생성 adapter 인터페이스 뒤에 둔다. 초기 구현은 결정적 mock adapter를 사용하여 네트워크 흐름, 상태 전이, 오류 처리와 UI를 검증한다. 실제 공급자 adapter는 이후 키 관리, 개인정보 정책, 비용·품질 평가를 충족한 뒤 추가한다.
