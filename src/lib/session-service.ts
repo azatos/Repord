@@ -51,7 +51,7 @@ export type PublicSessionDto = Readonly<{
   chunkCount: number
   continuitySummary: ContinuityState
 }>
-export type SessionServiceErrorCode = ProtocolErrorCode | 'not-found' | 'stale-revision' | 'session-id-conflict'
+export type SessionServiceErrorCode = ProtocolErrorCode | 'not-found' | 'stale-revision'
 export type SessionServiceFailure = Readonly<{ ok: false; code: SessionServiceErrorCode; missingSequences?: readonly number[] }>
 export type SessionServiceSuccess<T> = Readonly<{ ok: true; value: T }>
 export type SessionServiceResult<T> = SessionServiceSuccess<T> | SessionServiceFailure
@@ -69,6 +69,9 @@ function dto(session: StoredSession): PublicSessionDto {
 function protocolFailure<T>(result: { ok: false; code: ProtocolErrorCode; missingSequences?: readonly number[] }): SessionServiceResult<T> {
   return result.missingSequences === undefined ? { ok: false, code: result.code } : { ok: false, code: result.code, missingSequences: result.missingSequences }
 }
+function hasExpectedRevision(value: number): boolean {
+  return Number.isSafeInteger(value) && value >= 0
+}
 
 export class SessionService {
   constructor(private readonly repository: SessionRepository) {}
@@ -79,7 +82,7 @@ export class SessionService {
     const stored = { record: created.value, revision: 0 }
     return await this.repository.create(stored)
       ? { ok: true, value: dto(stored) }
-      : { ok: false, code: 'session-id-conflict' }
+      : { ok: false, code: 'not-found' }
   }
   async get(context: OwnerContext, sessionId: string): Promise<SessionServiceResult<PublicSessionDto>> {
     const stored = await this.repository.get(sessionId)
@@ -90,12 +93,16 @@ export class SessionService {
     return this.mutate(context, sessionId, expectedRevision, (record) => transitionSession(context, record, 'recording'))
   }
   async addChunk(context: OwnerContext, sessionId: string, expectedRevision: number, input: unknown): Promise<SessionServiceResult<AddChunkServiceResult>> {
+    if (!hasExpectedRevision(expectedRevision)) return { ok: false, code: 'invalid-payload' }
     const stored = await this.owned(context, sessionId)
     if (!stored.ok) return stored
     if (stored.value.revision !== expectedRevision) return { ok: false, code: 'stale-revision' }
     const added = addChunk(context, stored.value.record, input)
     if (!added.ok) return protocolFailure(added)
-    if (added.value.disposition === 'duplicate') return { ok: true, value: { session: dto(stored.value), disposition: 'duplicate' } }
+    if (added.value.disposition === 'duplicate') {
+      if (!await this.repository.compareAndSet(sessionId, expectedRevision, stored.value)) return { ok: false, code: 'stale-revision' }
+      return { ok: true, value: { session: dto(stored.value), disposition: 'duplicate' } }
+    }
     const next = { record: added.value.session, revision: stored.value.revision + 1 }
     if (!await this.repository.compareAndSet(sessionId, expectedRevision, next)) return { ok: false, code: 'stale-revision' }
     return { ok: true, value: { session: dto(next), disposition: 'accepted' } }
@@ -113,6 +120,7 @@ export class SessionService {
     return { ok: true, value: stored }
   }
   private async mutate(context: OwnerContext, sessionId: string, expectedRevision: number, operation: (record: SessionRecord) => ReturnType<typeof transitionSession>): Promise<SessionServiceResult<PublicSessionDto>> {
+    if (!hasExpectedRevision(expectedRevision)) return { ok: false, code: 'invalid-payload' }
     const stored = await this.owned(context, sessionId)
     if (!stored.ok) return stored
     if (stored.value.revision !== expectedRevision) return { ok: false, code: 'stale-revision' }

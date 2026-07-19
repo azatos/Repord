@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   InMemorySessionRepository,
   SessionService,
+  type SessionRepository,
   type StoredSession,
 } from './session-service'
 import { SESSION_PROTOCOL_VERSION, type ClientChunkMetadata, type OwnerContext } from './session-protocol'
@@ -34,11 +35,19 @@ describe('InMemorySessionRepository', () => {
   })
 })
 
+class RejectingCasRepository implements SessionRepository {
+  private readonly delegate = new InMemorySessionRepository()
+  async get(sessionId: string) { return this.delegate.get(sessionId) }
+  async create(session: StoredSession) { return this.delegate.create(session) }
+  async compareAndSet(): Promise<boolean> { return false }
+}
+
 describe('owner-scoped session service', () => {
-  it('rejects a session ID collision', async () => {
+  it('does not overwrite a colliding session ID or disclose its owner', async () => {
     const service = new SessionService(new InMemorySessionRepository())
     expect((await service.create(owner, { protocolVersion: 1, sessionId: 'collision' })).ok).toBe(true)
-    expect(await service.create(other, { protocolVersion: 1, sessionId: 'collision' })).toEqual({ ok: false, code: 'session-id-conflict' })
+    expect(await service.create(other, { protocolVersion: 1, sessionId: 'collision' })).toEqual({ ok: false, code: 'not-found' })
+    expect(success(await service.get(owner, 'collision'))).toMatchObject({ state: 'created', revision: 0 })
   })
   it('returns only non-sensitive public session fields', async () => {
     const { service, session } = await recording()
@@ -61,6 +70,12 @@ describe('owner-scoped session service', () => {
     const finalizing = success(await service.finalize(owner, session.sessionId, added.session.revision, { protocolVersion: 1, sessionId: session.sessionId, declaredFinalSequence: 0 }))
     expect(finalizing).toMatchObject({ state: 'finalizing', revision: 3, chunkCount: 1 })
   })
+  it('returns stale-revision when a repository CAS loses a race', async () => {
+    const service = new SessionService(new RejectingCasRepository())
+    const created = success(await service.create(owner, { protocolVersion: 1, sessionId: 'cas-race' }))
+    expect(await service.start(owner, created.sessionId, created.revision)).toEqual({ ok: false, code: 'stale-revision' })
+    expect(success(await service.get(owner, created.sessionId))).toMatchObject({ state: 'created', revision: 0 })
+  })
   it('reports accepted then duplicate chunks without incrementing duplicate revision', async () => {
     const { service, session } = await recording()
     const accepted = success(await service.addChunk(owner, session.sessionId, session.revision, chunk()))
@@ -74,9 +89,10 @@ describe('owner-scoped session service', () => {
     const first = success(await service.addChunk(owner, session.sessionId, second.session.revision, chunk({ continuityState: 'confirmed-gap', confirmedGaps: [{ startMs: 1_100, endMs: 1_200 }] })))
     expect(first.session).toMatchObject({ chunkCount: 2, continuitySummary: 'confirmed-gap' })
   })
-  it('rejects stale revisions without changing state', async () => {
+  it('rejects malformed and stale revisions without changing state', async () => {
     const { service, session } = await recording()
     const startedRevision = session.revision
+    expect(await service.start(owner, session.sessionId, -1)).toEqual({ ok: false, code: 'invalid-payload' })
     const accepted = success(await service.addChunk(owner, session.sessionId, startedRevision, chunk()))
     expect(await service.finalize(owner, session.sessionId, startedRevision, { protocolVersion: 1, sessionId: session.sessionId, declaredFinalSequence: 0 })).toEqual({ ok: false, code: 'stale-revision' })
     expect(success(await service.get(owner, session.sessionId))).toMatchObject({ state: 'recording', revision: accepted.session.revision })
