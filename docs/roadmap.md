@@ -6,10 +6,10 @@
 
 아래 마일스톤은 미래의 구현·완료 기준이며 현재 구현이나 통과 증거를 뜻하지 않는다.
 
-- GitHub Actions는 아직 구성하지 않았다.
+- M0용 마이크/PWA 테스트 하네스와 Linux 자동 검증 workflow가 추가되었지만, 자동 검증 결과는 실제 iPhone Safari 통과 증거가 아니다.
 - M1의 저장소·접근 제어·보존·로그 제외·삭제 제어와 검증 스위트는 아직 구현하거나 실행하지 않았다. 따라서 실제 오디오 업로드는 허용하지 않는다.
 - M2의 mock 전사 UI와 Linux 통합 테스트는 아직 구현하거나 실행하지 않았다.
-- 실제 iPhone Safari 시나리오 IOS-01부터 IOS-07까지는 모두 `not-run`이며, Linux 결과로 통과를 추정하지 않는다.
+- 실제 iPhone Safari 시나리오 IOS-01부터 IOS-05 및 IOS-07은 모두 `not-run`이다. M1 범위인 IOS-06도 `not-run`이며 Linux 결과로 실제 기기 통과를 추정하지 않는다.
 
 ## M0 — iPhone Safari 마이크 및 PWA 가능성 검증
 
