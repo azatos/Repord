@@ -48,9 +48,11 @@ describe('session API', () => {
   })
   it('rejects every non-exact If-Match form and maps a real CAS race to 409', async () => {
     const api = setup(); await create(api)
-    for (const value of [undefined, '*', 'W/"0"', '"0", "1"', '0', '"00"', '"-1"', '"9007199254740992"']) {
-      const response = await api(request('/api/v1/sessions/session-synthetic/start', { method: 'POST', headers: value === undefined ? {} : { 'if-match': value } }))
-      expect(response.status).toBe(428); expect(await response.json()).toEqual({ error: { code: 'invalid-precondition' } })
+    const missing = await api(request('/api/v1/sessions/session-synthetic/start', { method: 'POST' }))
+    expect(missing.status).toBe(428); expect(await missing.json()).toEqual({ error: { code: 'precondition-required' } })
+    for (const value of ['*', 'W/"0"', '"0", "1"', '0', '"00"', '"-1"', '"9007199254740992"']) {
+      const response = await api(request('/api/v1/sessions/session-synthetic/start', { method: 'POST', headers: { 'if-match': value } }))
+      expect(response.status).toBe(400); expect(await response.json()).toEqual({ error: { code: 'invalid-precondition' } })
     }
     await start(api); const [left, right] = await Promise.all([api(request('/api/v1/sessions/session-synthetic/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify(chunk()) })), api(request('/api/v1/sessions/session-synthetic/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify({ ...chunk(), chunkId: 'other', sequence: 1 }) }))])
     expect([left.status, right.status].sort()).toEqual([200, 409])
@@ -77,7 +79,8 @@ describe('session API', () => {
   })
   it('returns exact conflict bodies and does not disclose successful chunk metadata', async () => {
     const api = setup(); await create(api); await start(api)
-    const added = await api(request('/api/v1/sessions/session-synthetic/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify(chunk({ mimeType: 'audio/sentinel', captureStartMs: 7777, sha256: 'b'.repeat(64) })) }))
+    const added = await api(request('/api/v1/sessions/session-synthetic/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify(chunk({ mimeType: 'audio/sentinel', captureStartMs: 7777, captureEndMs: 8888, sha256: 'b'.repeat(64) })) }))
+    expect(added.status).toBe(200)
     expect(JSON.stringify(await added.json())).not.toMatch(/audio\/sentinel|7777|bbbb/)
     const stale = await api(request('/api/v1/sessions/session-synthetic/chunks', { method: 'POST', headers: { 'if-match': '"1"' }, body: JSON.stringify(chunk({ chunkId: 'stale', sequence: 1 })) })); expect(stale.status).toBe(409); expect(await stale.json()).toEqual({ error: { code: 'version-conflict' } }); assertPublic(stale)
     const second = await api(request('/api/v1/sessions/session-synthetic/chunks', { method: 'POST', headers: { 'if-match': '"2"' }, body: JSON.stringify(chunk({ chunkId: 'second', sequence: 1 })) })); expect(second.status).toBe(200)
