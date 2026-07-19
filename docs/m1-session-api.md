@@ -1,10 +1,10 @@
 # M1 Session HTTP API boundary
 
-`src/lib/session-http.ts` provides a framework-neutral handler `(Request) => Promise<Response>` for metadata-only M1 session coordination. A host application supplies the asynchronous `AuthVerifier`; this repository deliberately supplies neither an authentication SDK nor a production verifier, server listener, database, or object storage.
+`src/server/session-api.ts` provides a framework-neutral handler `(Request) => Promise<Response>` for metadata-only M1 session coordination. A host application supplies the asynchronous `AuthVerifier`; this repository deliberately supplies neither an authentication SDK nor a production verifier, server listener, database, or object storage.
 
 ## Routes and response contract
 
-All routes are under `/api/v1/sessions`. Every response is JSON with either `{ "ok": true, "data": ... }` or `{ "ok": false, "error": { "code": ... } }`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`.
+All routes are under `/api/v1/sessions`. Every response is JSON with either `{ "data": ... }` or `{ "error": { "code": ... } }`, `Cache-Control: no-store`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: no-referrer`.
 
 | Method | Route | Result |
 | --- | --- | --- |
@@ -19,9 +19,9 @@ Authentication is evaluated before route selection, header validation, or body r
 
 ## Revision preconditions and request limits
 
-`GET` and successful mutations emit a strong ETag in the exact form `"{revision}"`. `start`, `chunks`, `finalize`, and `DELETE` require an exact matching `If-Match` value: missing is `428 precondition-required`, weak, list, wildcard, or malformed values are `400 invalid-etag`, and a stale/losing CAS is `412 version-conflict`.
+`GET` and successful mutations emit a strong ETag in the exact form `"{revision}"`. `start`, `chunks`, `finalize`, and `DELETE` require an exact matching `If-Match` value: missing, weak, list, wildcard, or malformed values are `428 invalid-precondition`, and a stale/losing CAS is `409 version-conflict`.
 
-JSON bodies are read from the Web Standard stream with a 64 KiB (`65,536` byte) maximum, including when `Content-Length` is absent. Larger bodies return `413 body-too-large`; malformed or absent JSON returns `400 invalid-payload`. Protocol and service errors use stable non-sensitive codes only. Public success/error responses never include owner IDs, bearer tokens, SHA-256 digests, raw chunk content, or unvalidated input.
+JSON bodies must use `application/json`, are decoded as fatal UTF-8, and are read from the Web Standard stream with a 64 KiB (`65,536` byte) maximum, including when `Content-Length` is absent. Unsupported content types return `415 unsupported-media-type`; larger bodies return `413 body-too-large`; malformed, absent, or invalid UTF-8 JSON returns `400 invalid-payload`. Query strings and percent-encoded route forms are rejected. Protocol and service errors use stable non-sensitive codes only, and unexpected failures return sanitized `500 internal-error`. Public success/error responses never include owner IDs, bearer tokens, SHA-256 digests, raw chunk content, or unvalidated input.
 
 ## Scope
 
